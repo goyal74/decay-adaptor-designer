@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Decay Adaptor Designer: in-silico programmable RNA death-tag (decay-pathway recruitment adaptor) design"
+authors:
+  - family-names: Goyal
+    given-names: Ravi
+    affiliation: "Epigenuity LLC"
+type: software
+license: MIT
+version: "1.0.0"
+date-released: "2026-06-15"
+repository-code: "https://github.com/goyal74/decay-adaptor-designer"
+doi: "10.5281/zenodo.XXXXXXXX"
+url: "https://github.com/goyal74/decay-adaptor-designer"
+keywords:
+  - decay-pathway recruitment
+  - nonsense-mediated decay
+  - nuclear exosome
+  - antisense oligonucleotide
+  - RNA-targeting therapeutics
+  - programmable RNA degradation
