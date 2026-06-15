@@ -14,12 +14,14 @@ def draw(jpath, out, title="Decay Adaptor Designer — in-silico death-tag desig
     win = d["target_window_5to3"]
     be = d["binding_element_5to3"]            # antisense, 5'->3'
     be_anti = be[::-1]                         # 3'->5' so it aligns under the 5'->3' target
+    deprot = d.get("mode") == "de-protection"
     fig = plt.figure(figsize=(11, 5.4))
 
     # ---- Top-left: target site / antisense duplex ----
     ax = fig.add_axes([0.04, 0.55, 0.52, 0.34]); ax.axis("off")
     ax.set_xlim(0, max(len(win), 1)); ax.set_ylim(0, 3)
-    ax.text(0, 2.78, "Target site (accessible window, 5′→3′)", fontsize=9, color=NAVY)
+    top_lbl = "Protective 3′ structure targeted (5′→3′)" if deprot else "Target site (accessible window, 5′→3′)"
+    ax.text(0, 2.78, top_lbl, fontsize=9, color=NAVY)
     for i, b in enumerate(win):
         ax.text(i + 0.5, 2.25, b, ha="center", va="center", fontsize=9.5, family="monospace", color="#1A1A1A")
     for i in range(len(win)):
@@ -51,20 +53,34 @@ def draw(jpath, out, title="Decay Adaptor Designer — in-silico death-tag desig
              fontsize=7.6, family="monospace", color="#444")
     axm.set_title("Modular adaptor", fontsize=10, color=NAVY, loc="left")
 
-    # ---- Right-top: metrics ----
+    # ---- Right-top: metrics (mode-aware) ----
     ax2 = fig.add_axes([0.63, 0.52, 0.33, 0.37])
-    labels = ["accessibility\n(0–1)", "|duplex ΔG|\n(kcal/mol)", "Tm unmod.\n(°C)", "GC\n(%)"]
-    acc = d["target_site_accessibility"]; dg = abs(d["duplex_dG_kcal"])
-    tm = d["binding_element_tm_C"]; gc = d["binding_element_gc_pct"]
-    vals = [acc, dg, tm, gc]
-    cols = [TEAL, BLUE, AMBER, GREY]
-    bars = ax2.bar(labels, vals, color=cols, width=0.62)
-    for b, v in zip(bars, vals):
-        ax2.text(b.get_x() + b.get_width() / 2, v, f"{v:.1f}" if v < 5 else f"{v:.0f}",
-                 ha="center", va="bottom", fontsize=8.5)
-    ax2.set_ylim(0, max(vals) * 1.18)
-    ax2.set_title("Predicted binding metrics", fontsize=9.5, color=NAVY)
-    ax2.tick_params(labelsize=7.5); ax2.set_yticks([])
+    if deprot:
+        # de-protection energetics: the ASO:target duplex must outcompete the protective fold
+        fold = d["protective_fold_dG_kcal"]; dup = d["duplex_dG_kcal"]; dd = d["disruption_ddG_kcal"]
+        labels = ["protective\nfold ΔG", "ASO:target\nduplex ΔG", "disruption\nΔΔG"]
+        vals = [fold, dup, dd]; cols = [GREY, BLUE, GREEN]
+        bars = ax2.bar(labels, vals, color=cols, width=0.6)
+        ax2.axhline(0, color="#ccc", lw=.8)
+        for b, v in zip(bars, vals):
+            ax2.text(b.get_x() + b.get_width() / 2, v, f"{v:.0f}", ha="center",
+                     va="top" if v < 0 else "bottom", fontsize=9)
+        ax2.set_ylim(min(vals) * 1.25, 6)
+        ax2.set_title(f"De-protection energetics (kcal/mol)\ndisruption ΔΔG = {dd:.0f}  (<0 favorable)  ·  GC {d['binding_element_gc_pct']:.0f}%",
+                      fontsize=8.8, color=NAVY)
+        ax2.tick_params(labelsize=7.5); ax2.set_yticks([])
+    else:
+        labels = ["accessibility\n(0–1)", "|duplex ΔG|\n(kcal/mol)", "Tm unmod.\n(°C)", "GC\n(%)"]
+        acc = d["target_site_accessibility"]; dg = abs(d["duplex_dG_kcal"])
+        tm = d["binding_element_tm_C"]; gc = d["binding_element_gc_pct"]
+        vals = [acc, dg, tm, gc]; cols = [TEAL, BLUE, AMBER, GREY]
+        bars = ax2.bar(labels, vals, color=cols, width=0.62)
+        for b, v in zip(bars, vals):
+            ax2.text(b.get_x() + b.get_width() / 2, v, f"{v:.1f}" if v < 5 else f"{v:.0f}",
+                     ha="center", va="bottom", fontsize=8.5)
+        ax2.set_ylim(0, max(vals) * 1.18)
+        ax2.set_title("Predicted binding metrics", fontsize=9.5, color=NAVY)
+        ax2.tick_params(labelsize=7.5); ax2.set_yticks([])
     for sp in ["top", "right", "left"]:
         ax2.spines[sp].set_visible(False)
 
@@ -72,7 +88,7 @@ def draw(jpath, out, title="Decay Adaptor Designer — in-silico death-tag desig
     ax3 = fig.add_axes([0.63, 0.05, 0.33, 0.36]); ax3.axis("off")
     comp_name = {"nuclear": "Nuclear", "cytoplasmic": "Cytoplasmic",
                  "5utr": "5'UTR-proximal", "splice": "Splice-switch"}[d["compartment"]]
-    route_short = {"nuclear": "DTM D/E - nuclear exosome", "cytoplasmic": "DTM A/C - NMD",
+    route_short = {"nuclear": "DTM D - 3′ de-protection → exosome", "cytoplasmic": "DTM A/C - NMD",
                    "5utr": "DTM B - uORF", "splice": "DTM F - splice-switch"}[d["compartment"]]
     ax3.text(0, 0.92, f"Compartment:  {comp_name}", fontsize=9, va="top", color=NAVY, fontweight="bold")
     ax3.text(0, 0.66, f"Decay route:  {route_short}", fontsize=9, va="top", color=NAVY)

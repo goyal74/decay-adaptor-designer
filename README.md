@@ -24,11 +24,16 @@ uniqueness), have **GC ≥ 40%**, and **Tm ≥ 60 °C** (NN, unmodified), it ret
 accessible** one (`passes_design_rules` is reported; it falls back to best-accessible with the
 flag set false only if no window qualifies).
 
-It reports, using ViennaRNA:
-- **Target-site accessibility** (mean unpaired probability of the chosen window, local folding),
-- **Antisense:target duplex free energy** (ΔG, kcal/mol),
-- **Nearest-neighbor Tm** of the binding element (unmodified estimate) and **GC content**,
-- the assembled **adaptor sequence** and the **compartment → decay-route** decision.
+Two design modes, matched to the mechanism:
+- **Recruitment mode** (cytoplasmic NMD, etc.) targets an **accessible** site and reports **accessibility**,
+  **antisense:target duplex ΔG**, **Tm** (NN, unmodified), and **GC**.
+- **De-protection mode** (nuclear, Strategy D — the lead) does the opposite: it targets the **protective 3′
+  structure** and reports a **disruption ΔΔG** = (antisense:target duplex ΔG) − (protective local-fold ΔG).
+  A negative value means the antisense thermodynamically **outcompetes and opens** the protective fold,
+  exposing the 3′ end to the resident exosome. (Secondary-structure proxy; the MALAT1 ENE triple helix is a
+  tertiary structure confirmed by Phase II structure probing.)
+
+It also returns the assembled **adaptor sequence** and the **compartment → decay-route** decision.
 
 > **Reproducible example.** `malat1_example.fa` (Ensembl `ENST00000850956`) is bundled so
 > "Load an example (MALAT1)" is deterministic: it selects a unique site (window @ start 633,

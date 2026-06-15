@@ -145,11 +145,95 @@ def duplex_dg(binding_element, target_window):
     except Exception:
         return float("nan")
 
+def offtarget_scan(target, window):
+    """In-silico specificity check for the chosen binder against the provided transcript:
+    count perfect off-target sites (extra exact occurrences of the target window) and the
+    minimum mismatch distance to the nearest other 20-mer. Within-target uniqueness; a formal
+    transcriptome-wide (GENCODE) BLAST is the companion check run separately."""
+    t = clean(target); w = window; L = len(w)
+    if L == 0 or len(t) < L:
+        return {"perfect_offtargets": 0, "nearest_mismatch": L}
+    exact = -1; nearest = L
+    for i in range(len(t) - L + 1):
+        sub = t[i:i+L]
+        if sub == w:
+            exact += 1
+        else:
+            hd = sum(a != b for a, b in zip(sub, w))
+            if hd < nearest:
+                nearest = hd
+    return {"perfect_offtargets": max(0, exact), "nearest_mismatch": nearest}
+
+def _local_fold_dg(w):
+    if RNA is None:
+        return 0.0
+    try:
+        return round(RNA.fold(w)[1], 1)
+    except Exception:
+        return 0.0
+
+def deprotection_window(target, be_len=20, region_nt=200):
+    """Strategy D selects the 3'-terminal PROTECTIVE STRUCTURE to disrupt - the opposite of an
+    accessible site. Scan windows in the 3' region; among those that fold into a stable local
+    structure (protective) AND give a specificity-acceptable antisense (not low-complexity,
+    GC 40-65%), pick the MOST structured. Returns (start, window, protective_fold_dG, ok)."""
+    target = clean(target); n = len(target)
+    region = target[-region_nt:] if n > region_nt else target
+    base = n - len(region)
+    if RNA is None or len(region) <= be_len:
+        w = region[:be_len]
+        return base, w, _local_fold_dg(w), False
+    best = None; best_any = None
+    for i in range(0, len(region) - be_len + 1):
+        w = region[i:i+be_len]; be = revcomp(w)
+        gw = _local_fold_dg(w)
+        spec = (not _low_complexity(be)) and 40.0 <= gc_percent(be) <= 65.0
+        if best_any is None or gw < best_any[2]:
+            best_any = (base+i, w, gw)
+        if gw < -3.0 and spec and (best is None or gw < best[2]):
+            best = (base+i, w, gw)
+    if best:
+        return best[0], best[1], best[2], True
+    return best_any[0], best_any[1], best_any[2], False
+
+def design_deprotection(target, be_len=20):
+    """Strategy D (de-protection): disrupt the protective 3' structure so the resident exosome can
+    act. Reports the protective local-fold stability, the antisense:target duplex stability, and the
+    net DISRUPTION ΔΔG (favorable when the duplex outcompetes the protective fold). Secondary-structure
+    proxy; the MALAT1 ENE triple helix is a tertiary structure confirmed by Phase II structure probing."""
+    dtm = DTM["nuclear"]
+    start, window, fold_dg, spec_ok = deprotection_window(target, be_len=be_len)
+    binding_element = revcomp(window)
+    duplex = duplex_dg(binding_element, window)
+    adaptor = binding_element + LINKER + dtm["motif"]
+    disruption = round(duplex - fold_dg, 1) if (duplex == duplex and fold_dg == fold_dg) else float("nan")
+    return {
+        "compartment": "nuclear", "mode": "de-protection",
+        "dtm_strategy": dtm["strategy"], "dtm_effector": dtm["effector"],
+        "target_window_5to3": window, "target_window_start": start,
+        "binding_element_5to3": binding_element, "binding_element_len": len(binding_element),
+        "dtm_motif_5to3": dtm["motif"], "linker": LINKER,
+        "adaptor_5to3": adaptor, "adaptor_len": len(adaptor),
+        "protective_fold_dG_kcal": fold_dg,
+        "duplex_dG_kcal": duplex,
+        "disruption_ddG_kcal": disruption,         # = duplex - protective fold; negative = de-protection favorable
+        "binding_element_gc_pct": round(gc_percent(binding_element), 1),
+        "binding_element_tm_C": nn_tm(binding_element),
+        "passes_design_rules": spec_ok,
+        "specificity": offtarget_scan(target, window),
+        "qc_note": ("In-silico de-protection design only: the antisense:target duplex must outcompete "
+                    "the protective secondary structure (disruption ΔΔG < 0). This is a secondary-structure "
+                    "proxy; the MALAT1 ENE triple helix is tertiary and confirmed by Phase II structure probing. "
+                    "Exosome routing/decay is a Phase II wet-lab readout."),
+    }
+
 def design(target, compartment="nuclear", be_len=20):
     target = clean(target)
     compartment = compartment.lower()
     if compartment not in DTM:
         compartment = "nuclear"
+    if compartment == "nuclear":                    # Strategy D: de-protection of the protective structure
+        return design_deprotection(target, be_len=be_len)
     start, window, acc, qc_ok = accessible_window(target, L=be_len)
     binding_element = revcomp(window)               # antisense RNA-binding element (2'-MOE/LNA chimera)
     dtm = DTM[compartment]
@@ -159,6 +243,7 @@ def design(target, compartment="nuclear", be_len=20):
         adaptor = binding_element + LINKER + dtm["motif"]
     res = {
         "compartment": compartment,
+        "mode": "recruitment",
         "dtm_strategy": dtm["strategy"],
         "dtm_effector": dtm["effector"],
         "target_window_5to3": window,
@@ -174,6 +259,7 @@ def design(target, compartment="nuclear", be_len=20):
         "binding_element_gc_pct": round(gc_percent(binding_element), 1),
         "binding_element_tm_C": nn_tm(binding_element),
         "passes_design_rules": qc_ok,   # site is unique-prone, GC>=40%, Tm>=60C
+        "specificity": offtarget_scan(target, window),
         "design_rules": {
             "accessible_window_min_nt": 15,
             "binding_element_nt": "15-25",

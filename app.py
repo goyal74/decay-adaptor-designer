@@ -161,9 +161,14 @@ if go:
         mf.draw(jp.name, fig_path, "Decay Adaptor Designer — in-silico death-tag design")
 
     c1, c2, c3 = st.columns(3)
-    c1.metric("Target-site accessibility", f"{r['target_site_accessibility']:.2f}")
-    c2.metric("Antisense:target duplex ΔG", f"{r['duplex_dG_kcal']:.0f} kcal/mol")
-    c3.metric("Binding-element Tm (unmod.)", f"{r['binding_element_tm_C']:.0f} °C")
+    if r.get("mode") == "de-protection":
+        c1.metric("Protective fold ΔG", f"{r['protective_fold_dG_kcal']:.0f} kcal/mol")
+        c2.metric("Antisense:target duplex ΔG", f"{r['duplex_dG_kcal']:.0f} kcal/mol")
+        c3.metric("Disruption ΔΔG", f"{r['disruption_ddG_kcal']:.0f} kcal/mol", help="< 0 = antisense outcompetes the protective fold")
+    else:
+        c1.metric("Target-site accessibility", f"{r['target_site_accessibility']:.2f}")
+        c2.metric("Antisense:target duplex ΔG", f"{r['duplex_dG_kcal']:.0f} kcal/mol")
+        c3.metric("Binding-element Tm (unmod.)", f"{r['binding_element_tm_C']:.0f} °C")
 
     st.image(fig_path, use_container_width=True)
 
@@ -175,7 +180,8 @@ if go:
         f"- RNA-binding element (antisense, 2′-MOE/LNA): `{r['binding_element_5to3']}` "
         f"(GC {r['binding_element_gc_pct']}%)\n"
         f"- Decay-Triggering Module motif: `{r['dtm_motif_5to3'] or '(splice-switch ASO — no appended motif)'}`\n"
-        f"- Target window (accessible site): `{r['target_window_5to3']}` (start {r['target_window_start']})")
+        f"- Target window ({'protective 3′ structure' if r.get('mode')=='de-protection' else 'accessible site'}): "
+        f"`{r['target_window_5to3']}` (start {r['target_window_start']})")
     st.download_button("Download design (JSON)", open(jp.name).read(), file_name="decay_adaptor.json")
     st.info("In-silico target-site + binding design only. Decay recruitment (UPF1/SMD; nuclear exosome via "
             "NEXT/PAXT) is a Phase II wet-lab readout, precedented by artificial UPF1 tethering and the "
