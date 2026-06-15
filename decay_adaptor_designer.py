@@ -84,13 +84,35 @@ def nn_tm(seq, conc_nM=200.0, na_M=1.0):
     tm += 16.6 * math.log10(max(1e-3, na_M))  # salt correction
     return round(tm, 1)
 
-def accessible_window(seq, L=20, W=120):
-    """Pick the most single-stranded (accessible) window of length L by local folding."""
+import re as _re
+
+def _low_complexity(w):
+    """Flag low-complexity / repetition-prone windows that violate the uniqueness rule:
+    a homopolymer run >= 4, A/U content > 55%, any single base > 45%, or a short-period
+    tandem repeat (period 1-4 nt matching > 70% of positions, e.g. CUG/CAG expansions)."""
+    if _re.search(r"(.)\1{3,}", w):
+        return True
+    n = len(w)
+    if sum(c in "AU" for c in w) / n > 0.55:
+        return True
+    if max(w.count(b) for b in "ACGU") / n > 0.45:
+        return True
+    for p in (1, 2, 3, 4):                       # short tandem-repeat periodicity
+        m = sum(1 for i in range(n - p) if w[i] == w[i + p])
+        if m / (n - p) > 0.70:
+            return True
+    return False
+
+def accessible_window(seq, L=20, W=120, gc_floor=40.0, tm_floor=60.0):
+    """Pick a design-rule-compliant binding site: among windows that are unique-prone
+    (not low-complexity), GC >= gc_floor, and Tm >= tm_floor (NN, unmodified), return the
+    MOST accessible one (highest mean unpaired probability by local folding). Falls back to
+    the most-accessible window only if none satisfy the quality filters."""
     seq = clean(seq); n = len(seq)
     if n <= L:
-        return 0, seq, 1.0
+        return 0, seq, 1.0, True
     if RNA is None:
-        return 0, seq[:L], float("nan")
+        return 0, seq[:L], float("nan"), False
     Wl = min(W, n)
     pl = RNA.pfl_fold(seq, Wl, min(Wl, 100), 1e-4)
     paired = [0.0] * n
@@ -99,12 +121,19 @@ def accessible_window(seq, L=20, W=120):
         except AttributeError: i, j, p = e[0], e[1], e[2]
         paired[i-1] += p; paired[j-1] += p
     unp = [max(0.0, 1 - x) for x in paired]
-    best_i, best = 0, -1
+    qual, allw = [], []
     for i in range(0, n - L + 1):
-        s = sum(unp[i:i+L]) / L
-        if s > best:
-            best, best_i = s, i
-    return best_i, seq[best_i:best_i+L], round(best, 3)
+        w = seq[i:i+L]
+        acc = sum(unp[i:i+L]) / L
+        be = revcomp(w)
+        ok = (not _low_complexity(w)) and gc_percent(be) >= gc_floor and nn_tm(be) >= tm_floor
+        rec = (acc, i, w)
+        allw.append(rec)
+        if ok:
+            qual.append(rec)
+    pool = qual if qual else allw
+    acc, i, w = max(pool, key=lambda r: r[0])
+    return i, w, round(acc, 3), bool(qual)
 
 def duplex_dg(binding_element, target_window):
     """ViennaRNA antisense:target hybrid free energy (kcal/mol; more negative = tighter)."""
@@ -121,7 +150,7 @@ def design(target, compartment="nuclear", be_len=20):
     compartment = compartment.lower()
     if compartment not in DTM:
         compartment = "nuclear"
-    start, window, acc = accessible_window(target, L=be_len)
+    start, window, acc, qc_ok = accessible_window(target, L=be_len)
     binding_element = revcomp(window)               # antisense RNA-binding element (2'-MOE/LNA chimera)
     dtm = DTM[compartment]
     if compartment == "splice":
@@ -144,6 +173,7 @@ def design(target, compartment="nuclear", be_len=20):
         "duplex_dG_kcal": duplex_dg(binding_element, window),
         "binding_element_gc_pct": round(gc_percent(binding_element), 1),
         "binding_element_tm_C": nn_tm(binding_element),
+        "passes_design_rules": qc_ok,   # site is unique-prone, GC>=40%, Tm>=60C
         "design_rules": {
             "accessible_window_min_nt": 15,
             "binding_element_nt": "15-25",

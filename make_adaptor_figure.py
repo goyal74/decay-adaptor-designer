@@ -68,17 +68,14 @@ def draw(jpath, out, title="Decay Adaptor Designer — in-silico death-tag desig
     for sp in ["top", "right", "left"]:
         ax2.spines[sp].set_visible(False)
 
-    # ---- Right-bottom: decision + QC ----
+    # ---- Right-bottom: route labels only (no narrative text) ----
     ax3 = fig.add_axes([0.63, 0.05, 0.33, 0.36]); ax3.axis("off")
     comp_name = {"nuclear": "Nuclear", "cytoplasmic": "Cytoplasmic",
-                 "5utr": "5′UTR-proximal", "splice": "Splice-switch"}[d["compartment"]]
-    txt = (f"Compartment → decay route\n"
-           f"  {comp_name}\n"
-           f"  → {d['dtm_strategy']}\n"
-           f"  effector: {d['dtm_effector']}")
-    ax3.text(0, 0.98, txt, fontsize=8.3, va="top", color="#1A1A1A")
-    ax3.text(0, 0.30, "In-silico target-site + binding design only;\ndecay recruitment is a Phase II wet-lab readout.",
-             fontsize=7.5, va="top", color=GREY, style="italic")
+                 "5utr": "5'UTR-proximal", "splice": "Splice-switch"}[d["compartment"]]
+    route_short = {"nuclear": "DTM D/E - nuclear exosome", "cytoplasmic": "DTM A/C - NMD",
+                   "5utr": "DTM B - uORF", "splice": "DTM F - splice-switch"}[d["compartment"]]
+    ax3.text(0, 0.92, f"Compartment:  {comp_name}", fontsize=9, va="top", color=NAVY, fontweight="bold")
+    ax3.text(0, 0.66, f"Decay route:  {route_short}", fontsize=9, va="top", color=NAVY)
 
     fig.suptitle(title, fontsize=12, color=NAVY, fontweight="bold", y=1.02)
     fig.savefig(out, dpi=150, bbox_inches="tight"); plt.close(fig); print("wrote", out)

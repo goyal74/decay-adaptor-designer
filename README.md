@@ -18,11 +18,21 @@ antisense **RNA-binding element** (15–25 nt, 2′-MOE/LNA chemistry), and join
 | 5′UTR-proximal | B — uORF cassette (NMD-eligible context) | uORF-triggered NMD |
 | Splice-switch | F — pseudo-exon → frameshift PTC | endogenous NMD |
 
+Site selection enforces the design rules: among windows that are **not low-complexity**
+(no homopolymer run ≥ 4, A/U ≤ 55%, no single base > 45% — a proxy for transcriptome
+uniqueness), have **GC ≥ 40%**, and **Tm ≥ 60 °C** (NN, unmodified), it returns the **most
+accessible** one (`passes_design_rules` is reported; it falls back to best-accessible with the
+flag set false only if no window qualifies).
+
 It reports, using ViennaRNA:
 - **Target-site accessibility** (mean unpaired probability of the chosen window, local folding),
 - **Antisense:target duplex free energy** (ΔG, kcal/mol),
 - **Nearest-neighbor Tm** of the binding element (unmodified estimate) and **GC content**,
 - the assembled **adaptor sequence** and the **compartment → decay-route** decision.
+
+> **Reproducible example.** `malat1_example.fa` (Ensembl `ENST00000850956`) is bundled so
+> "Load an example (MALAT1)" is deterministic: it selects a unique site (window @ start 633,
+> GC 50%, Tm ≈ 70 °C, ΔG ≈ −36 kcal/mol, accessibility ≈ 0.72) reproducing the grant's Figure 4.
 
 ## Scope / honesty
 This is **in-silico target-site + binding design only** (the computationally tractable part). The actual

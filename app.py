@@ -85,9 +85,20 @@ COMP_LABEL = {"nuclear": "Nuclear (lncRNA / repeat) → exosome",
 LABEL_COMP = {v: k for k, v in COMP_LABEL.items()}
 
 
+import os
+def _malat1_reference():
+    """Pinned MALAT1 reference transcript (Ensembl ENST00000850956) bundled with the repo,
+    so the showcased example is deterministic and reproduces the figure/grant numbers
+    regardless of live database changes."""
+    path = os.path.join(os.path.dirname(__file__), "malat1_example.fa")
+    try:
+        return "".join(l.strip() for l in open(path) if not l.startswith(">"))
+    except Exception:
+        return ""
+
 def _load_example():
-    st.session_state.tgt_name = "MALAT1"
-    st.session_state.tgt_seq = ""
+    st.session_state.tgt_name = ""
+    st.session_state.tgt_seq = _malat1_reference()      # deterministic pinned reference
     st.session_state.comp_pick = COMP_LABEL["nuclear"]
 
 
