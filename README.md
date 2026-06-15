@@ -1,8 +1,8 @@
 # Decay Adaptor Designer — in-silico programmable RNA "death tag" design
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXXX)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20707857.svg)](https://doi.org/10.5281/zenodo.20707857)
 
-> Run it in your browser (no coding): **https://decay-adaptor-designer.streamlit.app**
+> Run it in your browser (no coding): **https://goyal74-decay-adaptor-designer-app-ysuuno.streamlit.app**
 > Developed by **Ravi Goyal, MD, PhD, Epigenuity LLC**. MIT License.
 
 Designs a modular **decay-pathway recruitment adaptor** — a programmable RNA "death tag" — that
